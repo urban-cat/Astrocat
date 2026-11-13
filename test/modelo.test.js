@@ -65,3 +65,27 @@ test('fechas: semana empieza el lunes y formato en español', () => {
   assert.equal(num(6.666), '6,7');
   assert.equal(num(10), '10');
 });
+
+import { periodo, serieAstro, extremos, listar, promedioGeneral } from '../js/modelo.js';
+
+test('períodos: semana, mes con semanas recortadas y año', () => {
+  const s = periodo('semana', '2026-10-25');
+  assert.equal(s.desde, '2026-10-19'); assert.equal(s.hasta, '2026-10-25');
+  assert.equal(s.titulo, 'Lun 19 – Dom 25 de octubre');
+  const m = periodo('mes', '2026-10-25');
+  assert.deepEqual(m.partes.map((p) => p.larga), ['1 – 4 oct', '5 – 11 oct', '12 – 18 oct', '19 – 25 oct', '26 – 31 oct']);
+  assert.equal(m.partes[0].corta, '28 sep');
+  assert.equal(m.titulo, 'Octubre 2026');
+  assert.equal(periodo('anio', '2026-10-25').partes.length, 12);
+});
+
+test('series y extremos ignoran partes sin registro', () => {
+  const d = (fecha, luna) => ({ fecha, respuestas: { ...dia25.respuestas, luna: { ...dia25.respuestas.luna, comunicacion: luna } } });
+  const serie = serieAstro([d('2026-10-19', true), d('2026-10-20', false)], periodo('semana', '2026-10-25'), 'luna');
+  assert.deepEqual(serie.map((x) => x.valor), [10, 0, null, null, null, null, null]);
+  const e = extremos(serie);
+  assert.equal(e.max, 10); assert.equal(e.mejores[0].larga, 'lunes 19');
+  assert.equal(listar(['martes', 'sábado']), 'martes y sábado');
+  assert.equal(listar(['a', 'b', 'c', 'd']), '4 días');
+  assert.equal(promedioGeneral(dia25), 7.2);
+});

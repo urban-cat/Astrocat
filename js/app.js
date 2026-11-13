@@ -4,6 +4,10 @@ import { iso } from './modelo.js';
 import * as hoy from './vistas/hoy.js';
 import * as registro from './vistas/registro.js';
 import * as varias from './vistas/varias.js';
+import * as astro from './vistas/astro.js';
+import * as especiales from './vistas/especiales.js';
+import * as historial from './vistas/historial.js';
+import * as ajustes from './vistas/ajustes.js';
 
 const raiz = document.getElementById('app');
 export const hoyIso = () => iso(new Date());
@@ -12,10 +16,13 @@ const RUTAS = [
   [/^\/bienvenida$/, varias.bienvenida],
   [/^\/hoy$/, hoy.vista],
   [/^\/registro\/(\w+)$/, registro.paso],
-  [/^\/historial.*$/, varias.pronto('Historial')],
-  [/^\/astro\/(\w+)$/, varias.pronto('Vista de astro', 'Hoy')],
-  [/^\/especiales$/, varias.pronto('Gráficas especiales', 'Hoy')],
-  [/^\/ajustes.*$/, varias.pronto('Ajustes')],
+  [/^\/historial$/, historial.general],
+  [/^\/historial\/astro\/(\w+)$/, historial.astroTendencia],
+  [/^\/tabla$/, historial.tabla],
+  [/^\/astro\/(\w+)$/, astro.vista],
+  [/^\/especiales$/, especiales.vista],
+  [/^\/ajustes$/, ajustes.vista],
+  [/^\/ajustes\/calculo$/, ajustes.calculo],
 ];
 
 function leerRuta() {

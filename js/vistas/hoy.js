@@ -1,6 +1,7 @@
 // Hoy: radar del día, destacados y astros. También sirve para ver días pasados.
 import { ASTROS, puntajesDia, fechaLarga, sumarDias, num, deIso } from '../modelo.js';
-import { leerDia, leerBorrador } from '../db.js';
+import { leerDia, leerBorrador, guardarMeta } from '../db.js';
+import { estadoRespaldo, exportar } from './ajustes.js';
 import { esc, ico, imgAstro, nav, radar } from '../ui.js';
 
 const DIA_CORTO = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
@@ -28,7 +29,14 @@ export async function vista({ query, hoy }) {
   let fecha = query.d && /^\d{4}-\d{2}-\d{2}$/.test(query.d) ? query.d : hoy;
   if (fecha > hoy) fecha = hoy;
   const esHoy = fecha === hoy;
-  const [dia, borrador] = await Promise.all([leerDia(fecha), leerBorrador()]);
+  const [dia, borrador, resp] = await Promise.all([leerDia(fecha), leerBorrador(), estadoRespaldo()]);
+  const aviso = resp.debeAvisar && esHoy ? `<section role="status" class="ac-px ac-alert ac-alert--warn" aria-labelledby="resp-t" data-aviso>
+      ${ico('aviso')}<div><strong id="resp-t" style="font: 800 16px/22px var(--font-sans);">${resp.ultimo ? `Hace ${resp.diasDesde} días que no respaldas` : 'Aún no tienes respaldo'}</strong><span style="font: 600 15px/22px var(--font-sans);">Tienes ${resp.sinRespaldar} ${resp.sinRespaldar === 1 ? 'día que solo está' : 'días que solo están'} en este teléfono.</span></div>
+      <div style="display: flex; flex-direction: row; gap: 8px; align-self: stretch; flex-wrap: wrap;"><button type="button" class="ac-btn ac-btn--primary ac-px" data-exportar style="flex-grow: 1;">${ico('exportar')}Exportar ahora</button><button type="button" class="ac-btn ac-btn--tertiary" data-posponer>Ahora no</button></div></section>` : '';
+  const montarAviso = (el) => {
+    el.querySelector('[data-exportar]')?.addEventListener('click', exportar);
+    el.querySelector('[data-posponer]')?.addEventListener('click', async () => { await guardarMeta('avisoPospuesto', hoy); el.querySelector('[data-aviso]').remove(); });
+  };
   const titulo = esHoy ? 'Hoy' : fechaLarga(fecha);
 
   if (!dia) {
@@ -49,7 +57,7 @@ export async function vista({ query, hoy }) {
         </main>${nav('Hoy')}</div>`, montar: montarElegir };
     }
     return { titulo, html: `<div class="ac-screen">${cabecera(fecha, hoy)}
-      <main class="ac-main" style="justify-content: center; align-items: center; text-align: center; gap: 18px;">
+      <main class="ac-main" style="justify-content: center; align-items: center; text-align: center; gap: 18px;">${aviso ? `<div style="text-align: left; align-self: stretch;">${aviso}</div>` : ''}
         <div style="position: relative; width: 240px; height: 200px;" aria-hidden="true">
           <img class="px" src="img/gato.svg" alt="" style="position: absolute; left: 56px; top: 24px; width: 128px; height: 128px;">
           <img class="px" src="img/astros/quiron.svg" alt="" style="position: absolute; left: 0; top: 120px; width: 64px; height: 64px;">
@@ -61,7 +69,7 @@ export async function vista({ query, hoy }) {
         <a class="ac-btn ac-btn--primary ac-px" href="#/registro/quiron?d=${fecha}&nuevo=1" style="width: 300px; max-width: 100%;">${esHoy ? 'Registrar el día' : `Registrar el ${diaCorto(fecha)}`}</a>
         ${esHoy ? `<button type="button" class="ac-btn ac-btn--tertiary" data-elegir>${ico('calendario')}Registrar otro día</button>`
                 : `<a class="ac-btn ac-btn--tertiary" href="#/hoy">Volver a hoy</a>`}
-      </main>${nav('Hoy')}</div>`, montar: montarElegir };
+      </main>${nav('Hoy')}</div>`, montar: (el) => { montarElegir(el); montarAviso(el); } };
   }
 
   const p = puntajesDia(dia);
@@ -74,7 +82,7 @@ export async function vista({ query, hoy }) {
       <a href="#/especiales?d=${fecha}" role="tab" aria-selected="false">Gráficas especiales</a>
     </div></div>
     <main class="ac-main">
-      <h1 class="ac-sr">${esc(titulo)}</h1>
+      <h1 class="ac-sr">${esc(titulo)}</h1>${aviso}
       <figure class="ac-px ac-card ac-radar" style="margin: 4px;">
         <figcaption class="ac-h1" style="font-size: 24px; line-height: 28px;">${esHoy ? 'Tu radar de hoy' : `Radar del ${diaCorto(fecha)}`}</figcaption>
         ${radar(p)}
@@ -88,7 +96,7 @@ export async function vista({ query, hoy }) {
         <h2 id="astros" class="ac-h2">Astros <small>· toca uno para ver su detalle</small></h2>
         <ul class="ac-grid2">${vals.map(({ a, v }) => `<li><a class="ac-px ac-astro" href="#/astro/${a.id}?d=${fecha}">${imgAstro(a.id)}<span class="ac-astro__name">${a.nombre}</span><span class="ac-astro__score">${num(v)} <small>de 10</small></span></a></li>`).join('')}</ul>
       </section>
-    </main>${nav('Hoy')}</div>` };
+    </main>${nav('Hoy')}</div>`, montar: montarAviso };
 }
 
 function montarElegir(el) {

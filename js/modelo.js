@@ -168,3 +168,83 @@ export function cumplimientoVariables(dias, astroId) {
     return { id: v.id, nombre: v.nombre, dias: dDias, cumplidos: ok, pct: dDias ? Math.round((ok / dDias) * 100) : null };
   });
 }
+
+// ---------- Períodos (semana de lunes a domingo, mes, año) ----------
+const MES3 = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const LETRA = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+const mayus = (t) => t[0].toUpperCase() + t.slice(1);
+
+// Devuelve { tipo, desde, hasta, titulo, anterior, siguiente, partes:[{desde, hasta, corta, larga}] }
+export function periodo(tipo, fecha) {
+  const d = deIso(fecha);
+  if (tipo === 'semana') {
+    const desde = lunesDe(fecha), hasta = sumarDias(desde, 6);
+    const a = deIso(desde), b = deIso(hasta);
+    const titulo = a.getMonth() === b.getMonth()
+      ? `Lun ${a.getDate()} – Dom ${b.getDate()} de ${MESES[b.getMonth()]}`
+      : `Lun ${a.getDate()} ${MES3[a.getMonth()]} – Dom ${b.getDate()} ${MES3[b.getMonth()]}`;
+    const partes = Array.from({ length: 7 }, (_, i) => { const f = sumarDias(desde, i); return { desde: f, hasta: f, corta: LETRA[i], larga: `${DIAS[(i + 1) % 7]} ${deIso(f).getDate()}` }; });
+    return { tipo, desde, hasta, titulo, anterior: sumarDias(desde, -7), siguiente: sumarDias(desde, 7), partes };
+  }
+  if (tipo === 'mes') {
+    const y = d.getFullYear(), m = d.getMonth();
+    const desde = iso(new Date(y, m, 1)), hasta = iso(new Date(y, m + 1, 0));
+    const partes = [];
+    for (let l = lunesDe(desde); l <= hasta; l = sumarDias(l, 7)) {
+      const a = l < desde ? desde : l, fin = sumarDias(l, 6), b = fin > hasta ? hasta : fin;
+      const da = deIso(a), db = deIso(b);
+      partes.push({ desde: a, hasta: b, corta: `${deIso(l).getDate()} ${MES3[deIso(l).getMonth()]}`, larga: a === b ? `${da.getDate()} ${MES3[db.getMonth()]}` : `${da.getDate()} – ${db.getDate()} ${MES3[db.getMonth()]}` });
+    }
+    return { tipo, desde, hasta, titulo: `${mayus(MESES[m])} ${y}`, anterior: iso(new Date(y, m - 1, 1)), siguiente: iso(new Date(y, m + 1, 1)), partes };
+  }
+  const y = d.getFullYear();
+  const partes = Array.from({ length: 12 }, (_, m) => ({ desde: iso(new Date(y, m, 1)), hasta: iso(new Date(y, m + 1, 0)), corta: mayus(MES3[m]), larga: MESES[m] }));
+  return { tipo: 'anio', desde: `${y}-01-01`, hasta: `${y}-12-31`, titulo: String(y), anterior: `${y - 1}-01-01`, siguiente: `${y + 1}-01-01`, partes };
+}
+
+export const diasDe = (dias, desde, hasta) => dias.filter((x) => x.fecha >= desde && x.fecha <= hasta);
+
+// Promedio general de un día (los 8 astros pesan igual)
+export function promedioGeneral(dia) {
+  const p = puntajesDia(dia);
+  return redondear(Object.values(p).reduce((s, v) => s + v, 0) / ASTROS.length);
+}
+
+// Serie de un astro por partes del período: [{ ...parte, valor|null, n }]
+export function serieAstro(dias, per, astroId) {
+  return per.partes.map((pt) => {
+    const ds = diasDe(dias, pt.desde, pt.hasta);
+    return { ...pt, n: ds.length, valor: ds.length ? promedios(ds)[astroId] : null };
+  });
+}
+export function serieEspecial(dias, per, astroId, espId) {
+  return per.partes.map((pt) => ({ ...pt, valor: promedioEspecial(diasDe(dias, pt.desde, pt.hasta), astroId, espId) }));
+}
+export function serieGeneral(dias, per) {
+  return per.partes.map((pt) => {
+    const ds = diasDe(dias, pt.desde, pt.hasta);
+    return { ...pt, n: ds.length, valor: ds.length ? redondear(ds.reduce((s, x) => s + promedioGeneral(x), 0) / ds.length) : null };
+  });
+}
+
+// Mejor y más bajo de una serie (ignora vacíos). Devuelve { max, min, mejores:[partes], bajos:[partes] }
+export function extremos(serie) {
+  const con = serie.filter((x) => x.valor != null);
+  if (!con.length) return null;
+  const max = Math.max(...con.map((x) => x.valor)), min = Math.min(...con.map((x) => x.valor));
+  return { max, min, mejores: con.filter((x) => x.valor === max), bajos: con.filter((x) => x.valor === min) };
+}
+
+// Lista legible: "martes y sábado", "lunes, miércoles y domingo", "4 días"
+export function listar(items, unidad = 'días') {
+  if (items.length > 3) return `${items.length} ${unidad}`;
+  return items.length > 1 ? `${items.slice(0, -1).join(', ')} y ${items.at(-1)}` : items[0];
+}
+
+// Texto legible de una respuesta (vista de astro y hoja Detalle del Excel)
+export function respuestaTexto(v, x) {
+  if (v.tipo === 'sino') return x ? 'Sí' : 'No';
+  if (v.tipo === 'numero') return `${x}${v.unidad ? ' ' + v.unidad : ''} · ${v.regla.replace('Cumple', 'cumple')}`;
+  if (v.tipo === 'imagen') return x?.si ? `Sí · ${x.horas} ${x.horas === 1 ? 'hora' : 'horas'} · cumple con 3 o menos` : 'No · no participa este día';
+  return '';
+}

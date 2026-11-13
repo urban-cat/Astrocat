@@ -1,7 +1,8 @@
-// Bienvenida y pantallas aún en construcción.
+// Bienvenida (primer uso).
 import { guardarMeta } from '../db.js';
-import { ico, nav } from '../ui.js';
+import { ico } from '../ui.js';
 import { ir } from '../app.js';
+import { restaurar } from './ajustes.js';
 
 export async function bienvenida() {
   return { titulo: 'Te damos la bienvenida', html: `<div class="ac-screen"><main class="ac-main" style="justify-content: center; gap: 20px; padding-top: 40px;">
@@ -15,15 +16,10 @@ export async function bienvenida() {
     </ul>
     <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
       <button type="button" class="ac-btn ac-btn--primary ac-px" data-empezar>Empezar</button>
-      <a class="ac-btn ac-btn--secondary ac-px" href="#/ajustes/restaurar">${ico('restaurar')}Ya tengo un respaldo</a>
+      <button type="button" class="ac-btn ac-btn--secondary ac-px" data-restaurar>${ico('restaurar')}Ya tengo un respaldo</button>
     </div></main></div>`,
-  montar: (el) => el.querySelector('[data-empezar]').addEventListener('click', async () => { await guardarMeta('bienvenidaVista', true); ir('#/hoy'); }) };
+  montar: (el) => {
+    el.querySelector('[data-empezar]').addEventListener('click', async () => { await guardarMeta('bienvenidaVista', true); ir('#/hoy'); });
+    el.querySelector('[data-restaurar]').addEventListener('click', restaurar);
+  } };
 }
-
-export const pronto = (titulo, pestana = titulo) => async () => ({ titulo, html: `<div class="ac-screen">
-  <header class="ac-header"><h1 class="ac-h1">${titulo}</h1></header>
-  <main class="ac-main" style="justify-content: center; align-items: center; text-align: center; gap: 18px;">
-    <img class="px" src="img/gato.svg" alt="" style="width: 128px; height: 128px;">
-    <p class="ac-text" style="max-width: 300px;">Esta pantalla llega en la próxima entrega. Tus registros ya se están guardando.</p>
-    <a class="ac-btn ac-btn--secondary ac-px" href="#/hoy">Ir a Hoy</a>
-  </main>${nav(pestana)}</div>` });

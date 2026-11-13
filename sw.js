@@ -1,8 +1,8 @@
 // Astrocat — service worker: la app funciona sin internet.
 // Al publicar una versión nueva, cambia VERSION para que el teléfono descargue los archivos nuevos.
-const VERSION = 'astrocat-v1.0.0-1';
+const VERSION = 'astrocat-v1.0.0-3';
 const BASE = ['./', 'index.html', 'manifest.webmanifest', 'css/app.css', 'js/app.js', 'js/modelo.js', 'js/db.js', 'js/ui.js',
-  'js/vistas/hoy.js', 'js/vistas/registro.js', 'js/vistas/elegir-dia.js', 'js/vistas/varias.js', 'img/logo.svg', 'img/gato.svg'];
+  'js/vistas/hoy.js', 'js/vistas/registro.js', 'js/vistas/elegir-dia.js', 'js/vistas/varias.js', 'js/vistas/astro.js', 'js/vistas/especiales.js', 'js/vistas/historial.js', 'js/vistas/ajustes.js', 'js/excel.js', 'js/vendor/fflate.js', 'img/logo.svg', 'img/gato.svg'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(BASE)).then(() => self.skipWaiting()));

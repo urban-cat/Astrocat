@@ -66,3 +66,66 @@ export function error(titulo, texto, botones = '') {
     <p id="err-d" class="ac-text">${texto}</p>
     ${botones || '<button type="button" class="ac-btn ac-btn--primary ac-px" data-cerrar>Entendido</button>'}`, { rol: 'alertdialog', etiqueta: 'err-t', descripcion: 'err-d' });
 }
+
+// Encabezado de período: selector Semana/Mes/Año + flechas. base: ruta sin query; extra: query adicional.
+export function selectorPeriodo(per, base, { hoy, extra = '', conDia = false, actual } = {}) {
+  const tipos = [...(conDia ? [['dia', 'Día']] : []), ['semana', 'Semana'], ['mes', 'Mes'], ['anio', 'Año']];
+  const ref = actual ?? per.desde;
+  const seg = `<nav class="ac-seg ac-px" aria-label="Período">${tipos.map(([t, n]) => `<a href="${base}?per=${t}&f=${ref}${extra}"${(per?.tipo ?? 'dia') === t ? ' aria-current="true"' : ''}>${n}</a>`).join('')}</nav>`;
+  if (!per) return seg;
+  const nombres = { semana: ['Semana anterior', 'Semana siguiente'], mes: ['Mes anterior', 'Mes siguiente'], anio: ['Año anterior', 'Año siguiente'] }[per.tipo];
+  const futuro = per.siguiente > hoy;
+  return `${seg}<div class="ac-row">
+    <a class="ac-iconbtn ac-px" href="${base}?per=${per.tipo}&f=${per.anterior}${extra}" aria-label="${nombres[0]}">${ico('anterior')}</a>
+    <div class="ac-datenav__label"><span class="ac-datenav__date">${per.titulo}</span><span class="ac-kicker" data-kicker></span></div>
+    ${futuro ? `<a class="ac-iconbtn ac-px" role="link" aria-disabled="true" aria-label="${nombres[1]}">${ico('siguiente')}</a>` : `<a class="ac-iconbtn ac-px" href="${base}?per=${per.tipo}&f=${per.siguiente}${extra}" aria-label="${nombres[1]}">${ico('siguiente')}</a>`}
+  </div>`;
+}
+
+export function tendencia(actual, previo) {
+  if (actual == null || previo == null) return '';
+  const d = Math.round((actual - previo) * 10) / 10;
+  const [i, t] = d > 0 ? ['sube', 'Sube'] : d < 0 ? ['baja', 'Baja'] : ['igual', 'Igual'];
+  return `<span class="ac-trend"><img src="img/ui/${i}.svg" alt="${t}">${d > 0 ? '+' : d < 0 ? '−' : ''}${num(Math.abs(d))}</span>`;
+}
+
+// Gráfica de línea pixel para una serie [{corta, larga, valor}] de 0 a max. enCurso: índice de la parte actual (punteada).
+export function linea(serie, { max = 10, enCurso = -1, aria }) {
+  const W = 326, x0 = 44, x1 = 296, y0 = 170, y1 = 20;
+  const n = serie.length, paso = n > 1 ? (x1 - x0) / (n - 1) : 0;
+  const X = (i) => (n > 1 ? x0 + paso * i : (x0 + x1) / 2), Y = (v) => y0 - ((y0 - y1) * v) / max;
+  let tramos = '', puntos = '', vals = '', etiq = '';
+  let prev = null;
+  serie.forEach((p, i) => {
+    if (p.valor != null) {
+      const x = X(i), y = Y(p.valor);
+      if (prev) tramos += `<line x1="${prev[0].toFixed(1)}" y1="${prev[1].toFixed(1)}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#6A44B0" stroke-width="4"${i === enCurso ? ' stroke-dasharray="7 5"' : ''}></line>`;
+      puntos += `<rect x="${(x - 6).toFixed(1)}" y="${(y - 6).toFixed(1)}" width="12" height="12" fill="${i === enCurso ? '#FFFFFF' : '#6A44B0'}" stroke="#3B2650" stroke-width="2"></rect>`;
+      if (n <= 12) vals += `<text x="${x.toFixed(1)}" y="${(y - 12).toFixed(1)}">${num(p.valor)}</text>`;
+      prev = [x, y];
+    } else prev = null;
+    if (n <= 7 || i % 2 === 0 || n <= 12) etiq += `<text x="${X(i).toFixed(1)}" y="192">${p.corta}</text>`;
+  });
+  if (enCurso >= 0 && serie[enCurso]?.valor != null) etiq += `<text x="${X(enCurso).toFixed(1)}" y="208">en curso</text>`;
+  return `<svg width="${W}" height="214" viewBox="0 0 ${W} 214" role="img" aria-label="${esc(aria)}" style="max-width: 100%; height: auto;">
+    <g stroke="#C9B3E8" stroke-width="2"><line x1="30" y1="20" x2="320" y2="20"></line><line x1="30" y1="95" x2="320" y2="95"></line><line x1="30" y1="170" x2="320" y2="170"></line></g>
+    <g font-family="Nunito, sans-serif" font-size="12" font-weight="700" fill="#6B5480" aria-hidden="true"><text x="22" y="24" text-anchor="end">${max}</text><text x="22" y="99" text-anchor="end">${num(max / 2)}</text><text x="22" y="174" text-anchor="end">0</text></g>
+    ${tramos}<g>${puntos}</g>
+    <g font-family="Pixelify Sans, monospace" font-size="15" font-weight="700" fill="#3B2650" text-anchor="middle" aria-hidden="true">${vals}</g>
+    <g font-family="Nunito, sans-serif" font-size="${n > 7 ? 11 : 12}" font-weight="700" fill="#6B5480" text-anchor="middle" aria-hidden="true">${etiq}</g></svg>`;
+}
+
+// Barras por parte. Para escalas de caritas, opciones = lista con {valor, carita}.
+export function barras(serie, { max = 10, opciones, aria }) {
+  const vs = serie.filter((p) => p.valor != null).map((p) => p.valor);
+  const top = vs.length ? Math.max(...vs) : null;
+  const alto = 80;
+  const cols = serie.map((p) => {
+    if (p.valor == null) return `<div class="ac-bar" aria-hidden="true"><span class="ac-bar__v">—</span><span class="ac-bar__b none"></span><span class="ac-bar__d">${p.corta}</span></div>`;
+    const h = Math.max(4, Math.round((alto * p.valor) / max));
+    const cerca = opciones ? opciones.reduce((a, o) => (Math.abs(o.valor - p.valor) < Math.abs(a.valor - p.valor) ? o : a)) : null;
+    const tope = opciones ? `<img class="px" src="img/caritas/${cerca.carita}.svg" alt="" style="width: 28px; height: 28px;">` : `<span class="ac-bar__v">${num(p.valor)}</span>`;
+    return `<div class="ac-bar" aria-hidden="true">${tope}<span class="ac-bar__b${p.valor === top ? ' best' : ''}" style="height: ${h}px;"></span><span class="ac-bar__d">${p.corta}</span></div>`;
+  }).join('');
+  return `<figure class="ac-bars" role="img" aria-label="${esc(aria)}" style="grid-template-columns: repeat(${serie.length}, minmax(0, 1fr)); gap: ${serie.length > 7 ? 4 : 8}px; min-height: ${alto + 50}px;">${cols}</figure>`;
+}
