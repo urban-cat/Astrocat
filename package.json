@@ -1,0 +1,11 @@
+{
+  "name": "astrocat",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Registro diario de 8 astros con radar, historial y respaldo en Excel. PWA ligera, accesible y sin nube.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "start": "npx --yes serve -l 5173 ."
+  }
+}
